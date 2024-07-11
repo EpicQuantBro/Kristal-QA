@@ -52,6 +52,7 @@ def start_quiz():
     
     st.session_state.q_index = 0
     st.session_state.score = 0
+    st.session_state.shuffled_options = []
 
 def iterate_question():
     st.session_state.q_index += 1
@@ -104,6 +105,8 @@ if "name" not in st.session_state:
     st.session_state.name = ""
 if "current_answer" not in st.session_state:
     st.session_state.current_answer = None
+if "shuffled_options" not in st.session_state:
+    st.session_state.shuffled_options = []
 
 # Define topics_list
 topics_list = ["Securities", "Securities-based derivatives contract", "Securities Industry Council", 
@@ -136,8 +139,12 @@ if st.session_state.show_quiz_mode:
     
     parsed_question = parse_question(current_question_from_bank)
     if parsed_question:
-        options = [parsed_question['correct_answer']] + parsed_question['wrong_answers']
-        random.shuffle(options)
+        if len(st.session_state.shuffled_options) <= st.session_state.q_index:
+            options = [parsed_question['correct_answer']] + parsed_question['wrong_answers']
+            random.shuffle(options)
+            st.session_state.shuffled_options.append(options)
+        else:
+            options = st.session_state.shuffled_options[st.session_state.q_index]
         
         st.write(f"Question {st.session_state.q_index + 1} of {len(st.session_state.selected_questions)}")
         st.write(parsed_question['question'])
