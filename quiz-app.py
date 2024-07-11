@@ -3,16 +3,16 @@ import pandas as pd
 import random
 import csv
 import os
+import ast
 
 #### Functions
 
 def read_csv():
-    st.session_state.question_bank = []
     file_path = "question_bank.csv"
     try:
         df = pd.read_csv(file_path, header=None)
         st.write(f"Read {df.shape[0]} rows from {file_path}")
-        st.session_state.question_bank = df.values.tolist()
+        st.session_state.question_bank = df[0].tolist()  # Store each row as a string
         
         # Debug print
         st.write("Debug: First few rows of question_bank:", st.session_state.question_bank[:2])
@@ -37,7 +37,7 @@ def start_quiz():
         return
     
     while len(st.session_state.selected_questions) < 10:
-        new_q = random.randint(1, len(st.session_state.question_bank) - 1)  # Start from 1 to skip header
+        new_q = random.randint(0, len(st.session_state.question_bank) - 1)
         if new_q not in st.session_state.selected_questions:
             st.session_state.selected_questions.append(new_q)
     
@@ -45,7 +45,7 @@ def start_quiz():
     st.session_state.score = 0
 
 def iterate_question():
-    question_data = current_question_from_bank
+    question_data = ast.literal_eval(current_question_from_bank)
     
     # Find the index of the user's answer
     user_answer_index = next((i for i, answer in enumerate(question_data[2:6]) if answer == user_answer), None)
@@ -87,10 +87,46 @@ def start_new_quiz():
     st.session_state.show_end_quiz = False
     st.session_state.show_enter_name = True
 
-# ... (rest of the code remains the same)
+#### Initialize session state variables
+if "show_topic_choice" not in st.session_state:
+    st.session_state.show_topic_choice = False
+if "show_quiz_mode" not in st.session_state:
+    st.session_state.show_quiz_mode = False
+if "show_end_quiz" not in st.session_state:
+    st.session_state.show_end_quiz = False
+if "show_enter_name" not in st.session_state:
+    st.session_state.show_enter_name = True
+if "question_bank" not in st.session_state:
+    st.session_state.question_bank = []
+if "selected_questions" not in st.session_state:
+    st.session_state.selected_questions = []
+if "q_index" not in st.session_state:
+    st.session_state.q_index = 0
+if "score" not in st.session_state:
+    st.session_state.score = 0
+if "name" not in st.session_state:
+    st.session_state.name = ""
 
-### Display option:  Show quiz questions
-if st.session_state.show_quiz_mode == True:
+#### Display Application Title
+st.title("Quiz")
+st.write("Securities and Futures Act 2001")
+
+# Read in question bank
+read_csv()
+
+### Display option: Show topic selector
+if st.session_state.show_topic_choice:
+    options = st.multiselect(
+        "What topics would you like to be quizzed on?",
+        (topics_list)
+    )
+    
+    topics_selected = [topics_list.index(x) for x in options if x in topics_list]
+    
+    st.button("Start quiz", on_click=start_quiz)
+
+### Display option: Show quiz questions
+if st.session_state.show_quiz_mode:
     current_question_from_bank = st.session_state.question_bank[st.session_state.selected_questions[st.session_state.q_index]]
     
     # Debug print
@@ -98,13 +134,30 @@ if st.session_state.show_quiz_mode == True:
     st.write("Debug: Length of current_question_from_bank =", len(current_question_from_bank))
 
     try:
+        question_data = ast.literal_eval(current_question_from_bank)
         user_answer = st.radio(
-            current_question_from_bank[1],  # Question text
-            current_question_from_bank[2:6]  # Answer options
+            question_data[1],  # Question text
+            question_data[2:6]  # Answer options
         )
         st.button("Enter", on_click=iterate_question)
-    except IndexError as e:
-        st.error(f"An error occurred while displaying the question: {e}")
+    except (ValueError, SyntaxError, IndexError) as e:
+        st.error(f"An error occurred while parsing the question: {e}")
         st.write("current_question_from_bank:", current_question_from_bank)
 
-# ... (rest of the code remains the same)
+### Display option: Show quiz end with score, and a button to start next quiz
+if st.session_state.show_end_quiz:
+    st.write(f"Your score is {st.session_state.score}/{len(st.session_state.selected_questions)}.")
+    st.button("Start another quiz", on_click=start_new_quiz)
+    
+    # Read the CSV file and show it as a table
+    file_path = 'scores.csv'
+    if os.path.isfile(file_path):
+        df = pd.read_csv(file_path)
+        st.dataframe(df)
+    else:
+        st.write("No scores recorded yet.")
+
+### Display option: User enters name
+if st.session_state.show_enter_name:
+    st.session_state.name = st.text_input("Please enter your name")
+    st.button("Next", on_click=name_to_topic)
