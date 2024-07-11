@@ -4,25 +4,25 @@ import random
 import csv
 import os
 
-
 #### Functions
 
 def read_csv():
     st.session_state.question_bank = []
-    for x in range(len(topics_list)):
-        file_path = f"questions/questions_{x}.csv"
-        #st.write("reading", file_path)
+    file_path = "question_bank.csv"  # Updated to match your GitHub file name
+    try:
         df = pd.read_csv(file_path, sep='\t')
-        #st.write("read " + str(df.shape[0]) + " rows")
-        st.session_state.question_bank.append(df.values.tolist())
-    #st.write(st.session_state.question_bank)
+        st.write(f"Read {df.shape[0]} rows from {file_path}")
+        st.session_state.question_bank = df.values.tolist()
+    except FileNotFoundError:
+        st.error(f"File not found: {file_path}")
+    except Exception as e:
+        st.error(f"An error occurred while reading {file_path}: {e}")
 
 def name_to_topic():
     st.session_state.show_topic_choice = True
     st.session_state.show_enter_name = False
 
 def start_quiz():
-    #st.write("Starting quiz...")
     st.session_state.show_topic_choice = False
     st.session_state.show_quiz_mode = True
     st.session_state.show_end_quiz = False
@@ -30,11 +30,9 @@ def start_quiz():
     while len(st.session_state.selected_questions)<10:
         for x in topics_selected:
             if len(st.session_state.selected_questions)<10:
-                new_q = [x,random.randint(0,len(st.session_state.question_bank[x])-1)]
+                new_q = [x,random.randint(0,len(st.session_state.question_bank)-1)]
                 if new_q not in st.session_state.selected_questions:
                     st.session_state.selected_questions.append(new_q)
-    #st.write(st.session_state.selected_questions)
-    #st.session_state.selected_questions = [[1,2],[0,3],[1,5]]
     st.session_state.q_index = 0
     st.session_state.score = 0
 
@@ -56,35 +54,28 @@ def iterate_question():
         st.session_state.show_quiz_mode = False
         st.session_state.show_end_quiz = True
 
-         # Add new row to the CSV file
+        # Add new row to the CSV file
         file_path = 'scores.csv'
         file_exists = os.path.isfile(file_path)
         
-
-        with open(file_path, 'a', newline = '') as csvfile:
+        with open(file_path, 'a', newline='') as csvfile:
             fieldnames = ['Date', 'Name', 'Score']
-            writer.csv.DictWriter(csvfile, fieldnames = fieldnames)
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
             if not file_exists:
                 writer.writeheader()
             
             writer.writerow({
-                'Date' : self.end_time.strftime('%Y-%m-%d'),
-                'Name' : st.session_state.name,
-                'Score' : st.session_state.score
+                'Date': pd.Timestamp.now().strftime('%Y-%m-%d'),
+                'Name': st.session_state.name,
+                'Score': st.session_state.score
             })
-
-        with open(file_path, 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(new_data)
-
 
 def start_new_quiz():
     st.session_state.show_topic_choice = False
     st.session_state.show_quiz_mode = False
     st.session_state.show_end_quiz = False
     st.session_state.show_enter_name = True
-
 
 #### initialize global variables and session state
 
@@ -105,13 +96,11 @@ if "show_enter_name" not in st.session_state:
 # read in question bank
 read_csv()
 
-
-#### Display Application Title=
+#### Display Application Title
 st.title("Quiz")
 st.write(
     "Securities and Futures Act 2001"
 )
-
 
 ### Display option:  Show topic selector
 if st.session_state.show_topic_choice == True:
@@ -125,18 +114,12 @@ if st.session_state.show_topic_choice == True:
         if x in options:
             topics_selected.append(topics_list.index(x))
     
-    
-    #st.write("You selected:", options)
-    #st.write("The indexes are", topics_selected)
-    
     st.button("Start quiz", on_click=start_quiz)
-
 
 ### Display option:  Show quiz questions
 if st.session_state.show_quiz_mode == True:
     current_question_list = st.session_state.selected_questions[st.session_state.q_index]
-    current_question_from_bank = st.session_state.question_bank[current_question_list[0]][current_question_list[1]]
-    #st.write(current_question_from_bank[0])
+    current_question_from_bank = st.session_state.question_bank[current_question_list[1]]
     user_answer = st.radio(
         current_question_from_bank[0],
         [current_question_from_bank[1], current_question_from_bank[2], 
@@ -151,8 +134,11 @@ if st.session_state.show_end_quiz == True:
     
     # Read the CSV file and show it as a table
     file_path = 'scores.csv'
-    df = pd.read_csv(file_path)
-    st.dataframe(df)
+    if os.path.isfile(file_path):
+        df = pd.read_csv(file_path)
+        st.dataframe(df)
+    else:
+        st.write("No scores recorded yet.")
 
 ### Display option:  User enters name
 if st.session_state.show_enter_name == True:
