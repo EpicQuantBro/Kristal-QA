@@ -10,15 +10,10 @@ def read_csv():
         with open(file_path, 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             st.session_state.question_bank = list(reader)
-        st.write(f"Read {len(st.session_state.question_bank)} rows from {file_path}")
         
         # Extract unique topics from the question bank
         st.session_state.topics_list = list(set(row[0] for row in st.session_state.question_bank[1:]))  # Assuming first row is header
-        
-        # Debug print
-        st.write("Debug: First few rows of question_bank:", st.session_state.question_bank[:2])
-        st.write("Debug: Number of questions loaded:", len(st.session_state.question_bank))
-        st.write("Debug: Available topics:", st.session_state.topics_list)
+
     except FileNotFoundError:
         st.error(f"File not found: {file_path}")
     except Exception as e:
