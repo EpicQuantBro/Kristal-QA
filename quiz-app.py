@@ -7,9 +7,9 @@ import os
 def read_csv():
     file_path = "question_bank.csv"
     try:
-        with open(file_path, newline='') as csvfile:
+        with open(file_path, 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
-            st.session_state.question_bank = [row for row in reader]
+            st.session_state.question_bank = list(reader)
         st.write(f"Read {len(st.session_state.question_bank)} rows from {file_path}")
         
         # Debug print
@@ -21,20 +21,15 @@ def read_csv():
         st.error(f"An error occurred while reading {file_path}: {e}")
 
 def parse_question(question_row):
-    try:
-        if len(question_row) >= 7:
-            return {
-                'topic': question_row[0],
-                'question': question_row[1],
-                'correct_answer': question_row[2],
-                'wrong_answers': question_row[3:6],
-                'explanation': question_row[6] if len(question_row) > 6 else ""
-            }
-        else:
-            return None
-    except Exception as e:
-        st.error(f"Error parsing question: {e}")
-        return None
+    if len(question_row) >= 7:
+        return {
+            'topic': question_row[0],
+            'question': question_row[1],
+            'correct_answer': question_row[2],
+            'wrong_answers': question_row[3:6],
+            'explanation': question_row[6] if len(question_row) > 6 else ""
+        }
+    return None
 
 def name_to_topic():
     st.session_state.show_topic_choice = True
@@ -51,7 +46,7 @@ def start_quiz():
         return
     
     while len(st.session_state.selected_questions) < 10:
-        new_q = random.randint(0, len(st.session_state.question_bank) - 1)
+        new_q = random.randint(1, len(st.session_state.question_bank) - 1)
         if new_q not in st.session_state.selected_questions:
             st.session_state.selected_questions.append(new_q)
     
@@ -107,6 +102,8 @@ if "score" not in st.session_state:
     st.session_state.score = 0
 if "name" not in st.session_state:
     st.session_state.name = ""
+if "current_answer" not in st.session_state:
+    st.session_state.current_answer = None
 
 # Define topics_list
 topics_list = ["Securities", "Securities-based derivatives contract", "Securities Industry Council", 
@@ -118,7 +115,8 @@ st.title("Quiz")
 st.write("Securities and Futures Act 2001")
 
 # Read in question bank
-read_csv()
+if "question_bank" not in st.session_state or not st.session_state.question_bank:
+    read_csv()
 
 # Display option: Show topic selector
 if st.session_state.show_topic_choice:
@@ -129,24 +127,24 @@ if st.session_state.show_topic_choice:
     
     topics_selected = [topics_list.index(x) for x in options if x in topics_list]
     
-    st.button("Start quiz", on_click=start_quiz)
+    if st.button("Start quiz", key="start_quiz"):
+        start_quiz()
 
 # Display option: Show quiz questions
 if st.session_state.show_quiz_mode:
     current_question_from_bank = st.session_state.question_bank[st.session_state.selected_questions[st.session_state.q_index]]
     
-    # Debug print
-    st.write("Debug: current_question_from_bank =", current_question_from_bank)
-    st.write("Debug: Length of current_question_from_bank =", len(current_question_from_bank))
-
     parsed_question = parse_question(current_question_from_bank)
     if parsed_question:
         options = [parsed_question['correct_answer']] + parsed_question['wrong_answers']
         random.shuffle(options)
         
-        user_answer = st.radio(parsed_question['question'], options)
+        st.write(f"Question {st.session_state.q_index + 1} of {len(st.session_state.selected_questions)}")
+        st.write(parsed_question['question'])
         
-        if st.button("Submit Answer"):
+        user_answer = st.radio("Select your answer:", options, key=f"question_{st.session_state.q_index}")
+        
+        if st.button("Submit Answer", key=f"submit_{st.session_state.q_index}"):
             if user_answer == parsed_question['correct_answer']:
                 st.write("Correct!")
                 st.session_state.score += 1
@@ -161,7 +159,8 @@ if st.session_state.show_quiz_mode:
 # Display option: Show quiz end with score, and a button to start next quiz
 if st.session_state.show_end_quiz:
     st.write(f"Your score is {st.session_state.score}/{len(st.session_state.selected_questions)}.")
-    st.button("Start another quiz", on_click=start_new_quiz)
+    if st.button("Start another quiz", key="start_new_quiz"):
+        start_new_quiz()
     
     # Read the CSV file and show it as a table
     file_path = 'scores.csv'
@@ -174,9 +173,5 @@ if st.session_state.show_end_quiz:
 # Display option: User enters name
 if st.session_state.show_enter_name:
     st.session_state.name = st.text_input("Please enter your name")
-    st.button("Next", on_click=name_to_topic)
-
-# Display option: User enters name
-if st.session_state.show_enter_name:
-    st.session_state.name = st.text_input("Please enter your name")
-    st.button("Next", on_click=name_to_topic)
+    if st.button("Next", key="enter_name"):
+        name_to_topic()
