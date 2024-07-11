@@ -13,6 +13,10 @@ def read_csv():
         df = pd.read_csv(file_path, sep='\t')
         st.write(f"Read {df.shape[0]} rows from {file_path}")
         st.session_state.question_bank = df.values.tolist()
+        
+        # Debug print
+        st.write("Debug: First few rows of question_bank:", st.session_state.question_bank[:2])
+        st.write("Debug: Number of questions loaded:", len(st.session_state.question_bank))
     except FileNotFoundError:
         st.error(f"File not found: {file_path}")
     except Exception as e:
@@ -27,12 +31,18 @@ def start_quiz():
     st.session_state.show_quiz_mode = True
     st.session_state.show_end_quiz = False
     st.session_state.selected_questions = []
-    while len(st.session_state.selected_questions)<10:
+    
+    if len(st.session_state.question_bank) < 10:
+        st.error(f"Not enough questions in the bank. Only {len(st.session_state.question_bank)} questions available.")
+        return
+    
+    while len(st.session_state.selected_questions) < 10:
         for x in topics_selected:
-            if len(st.session_state.selected_questions)<10:
-                new_q = [x,random.randint(0,len(st.session_state.question_bank)-1)]
+            if len(st.session_state.selected_questions) < 10:
+                new_q = [x, random.randint(0, len(st.session_state.question_bank) - 1)]
                 if new_q not in st.session_state.selected_questions:
                     st.session_state.selected_questions.append(new_q)
+    
     st.session_state.q_index = 0
     st.session_state.score = 0
 
@@ -120,12 +130,23 @@ if st.session_state.show_topic_choice == True:
 if st.session_state.show_quiz_mode == True:
     current_question_list = st.session_state.selected_questions[st.session_state.q_index]
     current_question_from_bank = st.session_state.question_bank[current_question_list[1]]
-    user_answer = st.radio(
-        current_question_from_bank[0],
-        [current_question_from_bank[1], current_question_from_bank[2], 
-        current_question_from_bank[3],current_question_from_bank[4]])
+    
+    # Debug print
+    st.write("Debug: current_question_from_bank =", current_question_from_bank)
+    st.write("Debug: Length of current_question_from_bank =", len(current_question_from_bank))
 
-    st.button("Enter", on_click=iterate_question)
+    try:
+        user_answer = st.radio(
+            current_question_from_bank[0],
+            [current_question_from_bank[1], current_question_from_bank[2], 
+            current_question_from_bank[3], current_question_from_bank[4]]
+        )
+    except IndexError as e:
+        st.error(f"An error occurred: {e}. The question structure might be incorrect.")
+        st.write("current_question_from_bank:", current_question_from_bank)
+        st.write("Length of current_question_from_bank:", len(current_question_from_bank))
+    else:
+        st.button("Enter", on_click=iterate_question)
 
 ### Display option:  Show quiz end with score, and a button to start next quiz
 if st.session_state.show_end_quiz == True:
