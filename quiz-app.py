@@ -53,9 +53,11 @@ def start_quiz():
     st.session_state.q_index = 0
     st.session_state.score = 0
     st.session_state.shuffled_options = []
+    st.session_state.current_answer = None
 
 def iterate_question():
     st.session_state.q_index += 1
+    st.session_state.current_answer = None
     if st.session_state.q_index == len(st.session_state.selected_questions):
         st.session_state.show_quiz_mode = False
         st.session_state.show_end_quiz = True
@@ -149,15 +151,17 @@ if st.session_state.show_quiz_mode:
         st.write(f"Question {st.session_state.q_index + 1} of {len(st.session_state.selected_questions)}")
         st.write(parsed_question['question'])
         
-        user_answer = st.radio("Select your answer:", options, key=f"question_{st.session_state.q_index}")
+        user_answer = st.radio("Select your answer:", options, index=None, key=f"question_{st.session_state.q_index}")
         
         if st.button("Submit Answer", key=f"submit_{st.session_state.q_index}"):
+            st.session_state.current_answer = user_answer
             if user_answer == parsed_question['correct_answer']:
                 st.write("Correct!")
                 st.session_state.score += 1
             else:
                 st.write(f"Incorrect. The correct answer is: {parsed_question['correct_answer']}")
-            
+        
+        if st.button("Next", key=f"next_{st.session_state.q_index}"):
             iterate_question()
     else:
         st.error("Unable to parse the current question. Skipping to the next one.")
