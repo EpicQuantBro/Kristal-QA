@@ -3,14 +3,14 @@ import pandas as pd
 import random
 import csv
 import os
-import ast
 
 def read_csv():
     file_path = "question_bank.csv"
     try:
-        df = pd.read_csv(file_path, header=None, names=['data'])
-        st.write(f"Read {df.shape[0]} rows from {file_path}")
-        st.session_state.question_bank = df['data'].tolist()
+        with open(file_path, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            st.session_state.question_bank = [row for row in reader]
+        st.write(f"Read {len(st.session_state.question_bank)} rows from {file_path}")
         
         # Debug print
         st.write("Debug: First few rows of question_bank:", st.session_state.question_bank[:2])
@@ -20,19 +20,15 @@ def read_csv():
     except Exception as e:
         st.error(f"An error occurred while reading {file_path}: {e}")
 
-def parse_question(question_str):
+def parse_question(question_row):
     try:
-        # Remove any leading/trailing whitespace and quotes
-        question_str = question_str.strip().strip('"')
-        # Split the string by commas, but not within quotes
-        parts = csv.reader([question_str], skipinitialspace=True).__next__()
-        if len(parts) >= 6:
+        if len(question_row) >= 7:
             return {
-                'topic': parts[0],
-                'question': parts[1],
-                'correct_answer': parts[2],
-                'wrong_answers': parts[3:6],
-                'explanation': parts[6] if len(parts) > 6 else ""
+                'topic': question_row[0],
+                'question': question_row[1],
+                'correct_answer': question_row[2],
+                'wrong_answers': question_row[3:6],
+                'explanation': question_row[6] if len(question_row) > 6 else ""
             }
         else:
             return None
@@ -174,6 +170,11 @@ if st.session_state.show_end_quiz:
         st.dataframe(df)
     else:
         st.write("No scores recorded yet.")
+
+# Display option: User enters name
+if st.session_state.show_enter_name:
+    st.session_state.name = st.text_input("Please enter your name")
+    st.button("Next", on_click=name_to_topic)
 
 # Display option: User enters name
 if st.session_state.show_enter_name:
