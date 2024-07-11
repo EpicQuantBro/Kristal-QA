@@ -12,9 +12,13 @@ def read_csv():
             st.session_state.question_bank = list(reader)
         st.write(f"Read {len(st.session_state.question_bank)} rows from {file_path}")
         
+        # Extract unique topics from the question bank
+        st.session_state.topics_list = list(set(row[0] for row in st.session_state.question_bank[1:]))  # Assuming first row is header
+        
         # Debug print
         st.write("Debug: First few rows of question_bank:", st.session_state.question_bank[:2])
         st.write("Debug: Number of questions loaded:", len(st.session_state.question_bank))
+        st.write("Debug: Available topics:", st.session_state.topics_list)
     except FileNotFoundError:
         st.error(f"File not found: {file_path}")
     except Exception as e:
@@ -41,12 +45,15 @@ def start_quiz():
     st.session_state.show_end_quiz = False
     st.session_state.selected_questions = []
     
-    if len(st.session_state.question_bank) < 10:
-        st.error(f"Not enough questions in the bank. Only {len(st.session_state.question_bank)} questions available.")
+    # Filter questions based on selected topics
+    filtered_questions = [q for q in st.session_state.question_bank[1:] if q[0] in st.session_state.selected_topics]
+    
+    if len(filtered_questions) < 10:
+        st.error(f"Not enough questions for selected topics. Only {len(filtered_questions)} questions available.")
         return
     
     while len(st.session_state.selected_questions) < 10:
-        new_q = random.randint(1, len(st.session_state.question_bank) - 1)
+        new_q = random.randint(0, len(filtered_questions) - 1)
         if new_q not in st.session_state.selected_questions:
             st.session_state.selected_questions.append(new_q)
     
@@ -97,6 +104,8 @@ if "show_enter_name" not in st.session_state:
     st.session_state.show_enter_name = True
 if "question_bank" not in st.session_state:
     st.session_state.question_bank = []
+if "topics_list" not in st.session_state:
+    st.session_state.topics_list = []
 if "selected_questions" not in st.session_state:
     st.session_state.selected_questions = []
 if "q_index" not in st.session_state:
@@ -133,18 +142,21 @@ if st.session_state.show_enter_name:
 elif st.session_state.show_topic_choice:
     options = st.multiselect(
         "What topics would you like to be quizzed on?",
-        (topics_list)
+        st.session_state.topics_list
     )
     
-    topics_selected = [topics_list.index(x) for x in options if x in topics_list]
-    
     if st.button("Start quiz", key="start_quiz"):
-        start_quiz()
-        st.experimental_rerun()  # Force a rerun to update the UI
+        if options:  # Only start the quiz if at least one topic is selected
+            st.session_state.selected_topics = options
+            start_quiz()
+            st.experimental_rerun()  # Force a rerun to update the UI
+        else:
+            st.error("Please select at least one topic.")
 
 # Display option: Show quiz questions
 elif st.session_state.show_quiz_mode:
-    current_question_from_bank = st.session_state.question_bank[st.session_state.selected_questions[st.session_state.q_index]]
+    filtered_questions = [q for q in st.session_state.question_bank[1:] if q[0] in st.session_state.selected_topics]
+    current_question_from_bank = filtered_questions[st.session_state.selected_questions[st.session_state.q_index]]
     
     parsed_question = parse_question(current_question_from_bank)
     if parsed_question:
