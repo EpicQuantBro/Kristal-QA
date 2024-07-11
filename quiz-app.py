@@ -109,11 +109,8 @@ if "current_answer" not in st.session_state:
     st.session_state.current_answer = None
 if "shuffled_options" not in st.session_state:
     st.session_state.shuffled_options = []
-
-# Define topics_list
-topics_list = ["Securities", "Securities-based derivatives contract", "Securities Industry Council", 
-"Administering a financial benchmark", "Advising on corporate finance", "Advocate and solicitor", 
-"Licensed trade repository", "Limited liability partnership", "Listing rules", "Product financing"]
+if "feedback" not in st.session_state:
+    st.session_state.feedback = ""
 
 # Display Application Title
 st.title("Quiz")
@@ -123,8 +120,17 @@ st.write("Securities and Futures Act 2001")
 if "question_bank" not in st.session_state or not st.session_state.question_bank:
     read_csv()
 
+# Display option: User enters name
+if st.session_state.show_enter_name:
+    st.session_state.name = st.text_input("Please enter your name", value=st.session_state.name)
+    if st.button("Next", key="enter_name"):
+        if st.session_state.name:  # Only proceed if a name is entered
+            st.session_state.show_enter_name = False
+            st.session_state.show_topic_choice = True
+            st.experimental_rerun()  # Force a rerun to update the UI
+
 # Display option: Show topic selector
-if st.session_state.show_topic_choice:
+elif st.session_state.show_topic_choice:
     options = st.multiselect(
         "What topics would you like to be quizzed on?",
         (topics_list)
@@ -134,9 +140,10 @@ if st.session_state.show_topic_choice:
     
     if st.button("Start quiz", key="start_quiz"):
         start_quiz()
+        st.experimental_rerun()  # Force a rerun to update the UI
 
 # Display option: Show quiz questions
-if st.session_state.show_quiz_mode:
+elif st.session_state.show_quiz_mode:
     current_question_from_bank = st.session_state.question_bank[st.session_state.selected_questions[st.session_state.q_index]]
     
     parsed_question = parse_question(current_question_from_bank)
@@ -153,25 +160,34 @@ if st.session_state.show_quiz_mode:
         
         user_answer = st.radio("Select your answer:", options, index=None, key=f"question_{st.session_state.q_index}")
         
-        if st.button("Submit Answer", key=f"submit_{st.session_state.q_index}"):
-            st.session_state.current_answer = user_answer
-            if user_answer == parsed_question['correct_answer']:
-                st.write("Correct!")
-                st.session_state.score += 1
-            else:
-                st.write(f"Incorrect. The correct answer is: {parsed_question['correct_answer']}")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Submit Answer", key=f"submit_{st.session_state.q_index}"):
+                if user_answer == parsed_question['correct_answer']:
+                    st.session_state.feedback = "Correct!"
+                    st.session_state.score += 1
+                else:
+                    st.session_state.feedback = f"Incorrect. The correct answer is: {parsed_question['correct_answer']}"
         
-        if st.button("Next", key=f"next_{st.session_state.q_index}"):
-            iterate_question()
+        with col2:
+            if st.button("Next", key=f"next_{st.session_state.q_index}"):
+                st.session_state.feedback = ""
+                iterate_question()
+                st.experimental_rerun()  # Force a rerun to update the UI
+        
+        if st.session_state.feedback:
+            st.write(st.session_state.feedback)
     else:
         st.error("Unable to parse the current question. Skipping to the next one.")
         iterate_question()
+        st.experimental_rerun()  # Force a rerun to update the UI
 
 # Display option: Show quiz end with score, and a button to start next quiz
-if st.session_state.show_end_quiz:
+elif st.session_state.show_end_quiz:
     st.write(f"Your score is {st.session_state.score}/{len(st.session_state.selected_questions)}.")
     if st.button("Start another quiz", key="start_new_quiz"):
         start_new_quiz()
+        st.experimental_rerun()  # Force a rerun to update the UI
     
     # Read the CSV file and show it as a table
     file_path = 'scores.csv'
@@ -180,9 +196,3 @@ if st.session_state.show_end_quiz:
         st.dataframe(df)
     else:
         st.write("No scores recorded yet.")
-
-# Display option: User enters name
-if st.session_state.show_enter_name:
-    st.session_state.name = st.text_input("Please enter your name")
-    if st.button("Next", key="enter_name"):
-        name_to_topic()
