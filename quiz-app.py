@@ -107,6 +107,11 @@ if "score" not in st.session_state:
 if "name" not in st.session_state:
     st.session_state.name = ""
 
+# Define topics_list
+topics_list = ["Securities", "Securities-based derivatives contract", "Securities Industry Council", 
+"Administering a financial benchmark", "Advising on corporate finance", "Advocate and solicitor", 
+"Licensed trade repository", "Limited liability partnership", "Listing rules", "Product financing"]
+
 #### Display Application Title
 st.title("Quiz")
 st.write("Securities and Futures Act 2001")
