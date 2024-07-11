@@ -5,14 +5,12 @@ import csv
 import os
 import ast
 
-#### Functions
-
 def read_csv():
     file_path = "question_bank.csv"
     try:
-        df = pd.read_csv(file_path, header=None)
+        df = pd.read_csv(file_path, header=None, names=['data'])
         st.write(f"Read {df.shape[0]} rows from {file_path}")
-        st.session_state.question_bank = df[0].tolist()  # Store each row as a string
+        st.session_state.question_bank = df['data'].tolist()
         
         # Debug print
         st.write("Debug: First few rows of question_bank:", st.session_state.question_bank[:2])
@@ -21,6 +19,26 @@ def read_csv():
         st.error(f"File not found: {file_path}")
     except Exception as e:
         st.error(f"An error occurred while reading {file_path}: {e}")
+
+def parse_question(question_str):
+    try:
+        # Remove any leading/trailing whitespace and quotes
+        question_str = question_str.strip().strip('"')
+        # Split the string by commas, but not within quotes
+        parts = csv.reader([question_str], skipinitialspace=True).__next__()
+        if len(parts) >= 6:
+            return {
+                'topic': parts[0],
+                'question': parts[1],
+                'correct_answer': parts[2],
+                'wrong_answers': parts[3:6],
+                'explanation': parts[6] if len(parts) > 6 else ""
+            }
+        else:
+            return None
+    except Exception as e:
+        st.error(f"Error parsing question: {e}")
+        return None
 
 def name_to_topic():
     st.session_state.show_topic_choice = True
@@ -45,41 +63,28 @@ def start_quiz():
     st.session_state.score = 0
 
 def iterate_question():
-    question_data = ast.literal_eval(current_question_from_bank)
-    
-    # Find the index of the user's answer
-    user_answer_index = next((i for i, answer in enumerate(question_data[2:6]) if answer == user_answer), None)
-    
-    # Check if the answer is correct
-    if user_answer_index == 0:  # Correct answer is always at index 2 in the question data
-        st.write("You selected the correct answer!")
-        st.session_state.score += 1
-    else:
-        st.write(f"You selected the wrong answer. The correct one was: {question_data[2]}")
-
     st.session_state.q_index += 1
-
     if st.session_state.q_index == len(st.session_state.selected_questions):
-        # this was the last question, so add the score to csv and move to end_quiz display mode
         st.session_state.show_quiz_mode = False
         st.session_state.show_end_quiz = True
+        save_score()
 
-        # Add new row to the CSV file
-        file_path = 'scores.csv'
-        file_exists = os.path.isfile(file_path)
+def save_score():
+    file_path = 'scores.csv'
+    file_exists = os.path.isfile(file_path)
+    
+    with open(file_path, 'a', newline='') as csvfile:
+        fieldnames = ['Date', 'Name', 'Score']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        if not file_exists:
+            writer.writeheader()
         
-        with open(file_path, 'a', newline='') as csvfile:
-            fieldnames = ['Date', 'Name', 'Score']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-            if not file_exists:
-                writer.writeheader()
-            
-            writer.writerow({
-                'Date': pd.Timestamp.now().strftime('%Y-%m-%d'),
-                'Name': st.session_state.name,
-                'Score': st.session_state.score
-            })
+        writer.writerow({
+            'Date': pd.Timestamp.now().strftime('%Y-%m-%d'),
+            'Name': st.session_state.name,
+            'Score': st.session_state.score
+        })
 
 def start_new_quiz():
     st.session_state.show_topic_choice = False
@@ -87,7 +92,7 @@ def start_new_quiz():
     st.session_state.show_end_quiz = False
     st.session_state.show_enter_name = True
 
-#### Initialize session state variables
+# Initialize session state variables
 if "show_topic_choice" not in st.session_state:
     st.session_state.show_topic_choice = False
 if "show_quiz_mode" not in st.session_state:
@@ -112,14 +117,14 @@ topics_list = ["Securities", "Securities-based derivatives contract", "Securitie
 "Administering a financial benchmark", "Advising on corporate finance", "Advocate and solicitor", 
 "Licensed trade repository", "Limited liability partnership", "Listing rules", "Product financing"]
 
-#### Display Application Title
+# Display Application Title
 st.title("Quiz")
 st.write("Securities and Futures Act 2001")
 
 # Read in question bank
 read_csv()
 
-### Display option: Show topic selector
+# Display option: Show topic selector
 if st.session_state.show_topic_choice:
     options = st.multiselect(
         "What topics would you like to be quizzed on?",
@@ -130,7 +135,7 @@ if st.session_state.show_topic_choice:
     
     st.button("Start quiz", on_click=start_quiz)
 
-### Display option: Show quiz questions
+# Display option: Show quiz questions
 if st.session_state.show_quiz_mode:
     current_question_from_bank = st.session_state.question_bank[st.session_state.selected_questions[st.session_state.q_index]]
     
@@ -138,18 +143,26 @@ if st.session_state.show_quiz_mode:
     st.write("Debug: current_question_from_bank =", current_question_from_bank)
     st.write("Debug: Length of current_question_from_bank =", len(current_question_from_bank))
 
-    try:
-        question_data = ast.literal_eval(current_question_from_bank)
-        user_answer = st.radio(
-            question_data[1],  # Question text
-            question_data[2:6]  # Answer options
-        )
-        st.button("Enter", on_click=iterate_question)
-    except (ValueError, SyntaxError, IndexError) as e:
-        st.error(f"An error occurred while parsing the question: {e}")
-        st.write("current_question_from_bank:", current_question_from_bank)
+    parsed_question = parse_question(current_question_from_bank)
+    if parsed_question:
+        options = [parsed_question['correct_answer']] + parsed_question['wrong_answers']
+        random.shuffle(options)
+        
+        user_answer = st.radio(parsed_question['question'], options)
+        
+        if st.button("Submit Answer"):
+            if user_answer == parsed_question['correct_answer']:
+                st.write("Correct!")
+                st.session_state.score += 1
+            else:
+                st.write(f"Incorrect. The correct answer is: {parsed_question['correct_answer']}")
+            
+            iterate_question()
+    else:
+        st.error("Unable to parse the current question. Skipping to the next one.")
+        iterate_question()
 
-### Display option: Show quiz end with score, and a button to start next quiz
+# Display option: Show quiz end with score, and a button to start next quiz
 if st.session_state.show_end_quiz:
     st.write(f"Your score is {st.session_state.score}/{len(st.session_state.selected_questions)}.")
     st.button("Start another quiz", on_click=start_new_quiz)
@@ -162,7 +175,7 @@ if st.session_state.show_end_quiz:
     else:
         st.write("No scores recorded yet.")
 
-### Display option: User enters name
+# Display option: User enters name
 if st.session_state.show_enter_name:
     st.session_state.name = st.text_input("Please enter your name")
     st.button("Next", on_click=name_to_topic)
