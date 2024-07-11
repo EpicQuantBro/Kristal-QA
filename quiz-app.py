@@ -10,7 +10,7 @@ def read_csv():
     st.session_state.question_bank = []
     file_path = "question_bank.csv"  # Updated to match your GitHub file name
     try:
-        df = pd.read_csv(file_path, sep='\t')
+        df = pd.read_csv(file_path, sep=',')  # Changed to comma separator
         st.write(f"Read {df.shape[0]} rows from {file_path}")
         st.session_state.question_bank = df.values.tolist()
         
@@ -160,6 +160,11 @@ if st.session_state.show_end_quiz == True:
         st.dataframe(df)
     else:
         st.write("No scores recorded yet.")
+
+### Display option:  User enters name
+if st.session_state.show_enter_name == True:
+    st.session_state.name = st.text_input("Please enter your name")
+    st.button("Next", on_click=name_to_topic)
 
 ### Display option:  User enters name
 if st.session_state.show_enter_name == True:
