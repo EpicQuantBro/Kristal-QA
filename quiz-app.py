@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import csv
 import os
+import ast
 
 #### Functions
 
@@ -10,7 +11,7 @@ def read_csv():
     st.session_state.question_bank = []
     file_path = "question_bank.csv"  # Updated to match your GitHub file name
     try:
-        df = pd.read_csv(file_path, sep=',')  # Changed to comma separator
+        df = pd.read_csv(file_path, sep=',', header=None)  # Assuming no header in the CSV
         st.write(f"Read {df.shape[0]} rows from {file_path}")
         st.session_state.question_bank = df.values.tolist()
         
@@ -47,17 +48,20 @@ def start_quiz():
     st.session_state.score = 0
 
 def iterate_question():
-    st.session_state.q_index += 1 
+    question_data = ast.literal_eval(current_question_from_bank[0])
     
-    # update the score and show the message  
-    user_answer_index = current_question_from_bank.index(user_answer)
-    if (user_answer_index-1) == (ord(current_question_from_bank[5].upper()) - ord('A')):
+    # Find the index of the user's answer
+    user_answer_index = next((i for i, answer in enumerate(question_data[1:5]) if answer == user_answer), None)
+    
+    # Check if the answer is correct
+    correct_answer_index = ord(question_data[5].upper()) - ord('A')
+    if user_answer_index == correct_answer_index:
         st.write("You selected the correct answer!")
         st.session_state.score += 1
     else:
-        st.write("You selected the wrong answer. The correct one was number " + 
-        str((ord(current_question_from_bank[5].upper()) - ord('A')) + 1) + " - " +
-        f"{current_question_from_bank[(ord(current_question_from_bank[5].upper()) - ord('A')) + 1]}")
+        st.write(f"You selected the wrong answer. The correct one was: {question_data[correct_answer_index + 1]}")
+
+    st.session_state.q_index += 1
 
     if st.session_state.q_index == len(st.session_state.selected_questions):
         # this was the last question, so add the score to csv and move to end_quiz display mode
@@ -108,9 +112,7 @@ read_csv()
 
 #### Display Application Title
 st.title("Quiz")
-st.write(
-    "Securities and Futures Act 2001"
-)
+st.write("Securities and Futures Act 2001")
 
 ### Display option:  Show topic selector
 if st.session_state.show_topic_choice == True:
@@ -136,17 +138,15 @@ if st.session_state.show_quiz_mode == True:
     st.write("Debug: Length of current_question_from_bank =", len(current_question_from_bank))
 
     try:
+        question_data = ast.literal_eval(current_question_from_bank[0])
         user_answer = st.radio(
-            current_question_from_bank[0],
-            [current_question_from_bank[1], current_question_from_bank[2], 
-            current_question_from_bank[3], current_question_from_bank[4]]
+            question_data[0],
+            question_data[1:5]
         )
-    except IndexError as e:
-        st.error(f"An error occurred: {e}. The question structure might be incorrect.")
-        st.write("current_question_from_bank:", current_question_from_bank)
-        st.write("Length of current_question_from_bank:", len(current_question_from_bank))
-    else:
         st.button("Enter", on_click=iterate_question)
+    except (ValueError, SyntaxError, IndexError) as e:
+        st.error(f"An error occurred while parsing the question: {e}")
+        st.write("current_question_from_bank:", current_question_from_bank)
 
 ### Display option:  Show quiz end with score, and a button to start next quiz
 if st.session_state.show_end_quiz == True:
@@ -160,11 +160,6 @@ if st.session_state.show_end_quiz == True:
         st.dataframe(df)
     else:
         st.write("No scores recorded yet.")
-
-### Display option:  User enters name
-if st.session_state.show_enter_name == True:
-    st.session_state.name = st.text_input("Please enter your name")
-    st.button("Next", on_click=name_to_topic)
 
 ### Display option:  User enters name
 if st.session_state.show_enter_name == True:
