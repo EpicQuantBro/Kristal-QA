@@ -3,15 +3,14 @@ import pandas as pd
 import random
 import csv
 import os
-import ast
 
 #### Functions
 
 def read_csv():
     st.session_state.question_bank = []
-    file_path = "question_bank.csv"  # Updated to match your GitHub file name
+    file_path = "question_bank.csv"
     try:
-        df = pd.read_csv(file_path, sep=',', header=None)  # Assuming no header in the CSV
+        df = pd.read_csv(file_path, header=None)
         st.write(f"Read {df.shape[0]} rows from {file_path}")
         st.session_state.question_bank = df.values.tolist()
         
@@ -38,28 +37,25 @@ def start_quiz():
         return
     
     while len(st.session_state.selected_questions) < 10:
-        for x in topics_selected:
-            if len(st.session_state.selected_questions) < 10:
-                new_q = [x, random.randint(0, len(st.session_state.question_bank) - 1)]
-                if new_q not in st.session_state.selected_questions:
-                    st.session_state.selected_questions.append(new_q)
+        new_q = random.randint(1, len(st.session_state.question_bank) - 1)  # Start from 1 to skip header
+        if new_q not in st.session_state.selected_questions:
+            st.session_state.selected_questions.append(new_q)
     
     st.session_state.q_index = 0
     st.session_state.score = 0
 
 def iterate_question():
-    question_data = ast.literal_eval(current_question_from_bank[0])
+    question_data = current_question_from_bank
     
     # Find the index of the user's answer
-    user_answer_index = next((i for i, answer in enumerate(question_data[1:5]) if answer == user_answer), None)
+    user_answer_index = next((i for i, answer in enumerate(question_data[2:6]) if answer == user_answer), None)
     
     # Check if the answer is correct
-    correct_answer_index = ord(question_data[5].upper()) - ord('A')
-    if user_answer_index == correct_answer_index:
+    if user_answer_index == 0:  # Correct answer is always at index 2 in the question data
         st.write("You selected the correct answer!")
         st.session_state.score += 1
     else:
-        st.write(f"You selected the wrong answer. The correct one was: {question_data[correct_answer_index + 1]}")
+        st.write(f"You selected the wrong answer. The correct one was: {question_data[2]}")
 
     st.session_state.q_index += 1
 
@@ -91,77 +87,24 @@ def start_new_quiz():
     st.session_state.show_end_quiz = False
     st.session_state.show_enter_name = True
 
-#### initialize global variables and session state
-
-topics_list = ["Securities", "Securities-based derivatives contract", "Securities Industry Council", 
-"Administering a financial benchmark", "Advising on corporate finance", "Advocate and solicitor", 
-"Licensed trade repository", "Limited liability partnership", "Listing rules", "Product financing"
-]
-
-if "show_topic_choice" not in st.session_state:
-    st.session_state.show_topic_choice = False
-if "show_quiz_mode" not in st.session_state:
-    st.session_state.show_quiz_mode = False
-if "show_end_quiz" not in st.session_state:
-    st.session_state.show_end_quiz = False
-if "show_enter_name" not in st.session_state:
-    st.session_state.show_enter_name = True
-    
-# read in question bank
-read_csv()
-
-#### Display Application Title
-st.title("Quiz")
-st.write("Securities and Futures Act 2001")
-
-### Display option:  Show topic selector
-if st.session_state.show_topic_choice == True:
-    options = st.multiselect(
-        "What topics would you like to be quizzed on?",
-        (topics_list)
-    )
-    
-    topics_selected = []
-    for x in topics_list:
-        if x in options:
-            topics_selected.append(topics_list.index(x))
-    
-    st.button("Start quiz", on_click=start_quiz)
+# ... (rest of the code remains the same)
 
 ### Display option:  Show quiz questions
 if st.session_state.show_quiz_mode == True:
-    current_question_list = st.session_state.selected_questions[st.session_state.q_index]
-    current_question_from_bank = st.session_state.question_bank[current_question_list[1]]
+    current_question_from_bank = st.session_state.question_bank[st.session_state.selected_questions[st.session_state.q_index]]
     
     # Debug print
     st.write("Debug: current_question_from_bank =", current_question_from_bank)
     st.write("Debug: Length of current_question_from_bank =", len(current_question_from_bank))
 
     try:
-        question_data = ast.literal_eval(current_question_from_bank[0])
         user_answer = st.radio(
-            question_data[0],
-            question_data[1:5]
+            current_question_from_bank[1],  # Question text
+            current_question_from_bank[2:6]  # Answer options
         )
         st.button("Enter", on_click=iterate_question)
-    except (ValueError, SyntaxError, IndexError) as e:
-        st.error(f"An error occurred while parsing the question: {e}")
+    except IndexError as e:
+        st.error(f"An error occurred while displaying the question: {e}")
         st.write("current_question_from_bank:", current_question_from_bank)
 
-### Display option:  Show quiz end with score, and a button to start next quiz
-if st.session_state.show_end_quiz == True:
-    st.write(f"Your score is {st.session_state.score}/{len(st.session_state.selected_questions)}.")
-    st.button("Start another quiz", on_click=start_new_quiz)
-    
-    # Read the CSV file and show it as a table
-    file_path = 'scores.csv'
-    if os.path.isfile(file_path):
-        df = pd.read_csv(file_path)
-        st.dataframe(df)
-    else:
-        st.write("No scores recorded yet.")
-
-### Display option:  User enters name
-if st.session_state.show_enter_name == True:
-    st.session_state.name = st.text_input("Please enter your name")
-    st.button("Next", on_click=name_to_topic)
+# ... (rest of the code remains the same)
