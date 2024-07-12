@@ -154,12 +154,15 @@ def main():
                         st.error("Incorrect.")
                         st.write(f"The correct answer is: {parsed_question['correct_answer']['answer']}")
                     
+                    st.write("Explanation:")
+                    st.write(parsed_question['explanation'])
+                    st.write(f"Relevant pages: {', '.join(map(str, parsed_question['explanation_pages']))}")
+                    
                     if st.button("Next Question"):
                         iterate_question()
                         st.experimental_rerun()
                 else:
                     st.warning("Please select an answer before submitting.")
-
     # Show score
     elif st.session_state.show_score:
         st.write(f"Quiz completed! Your score: {st.session_state.score}/{len(st.session_state.selected_questions)}")
